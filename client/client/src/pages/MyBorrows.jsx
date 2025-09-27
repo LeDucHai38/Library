@@ -1,49 +1,29 @@
+// src/pages/MyBorrows.jsx
 import { useEffect, useState } from "react";
-import { listUserBorrows, returnBook } from "../services/borrowservices";
+import { getMyBorrows, returnBook } from "../services/borrowservices";
 
 function MyBorrows({ token }) {
     const [records, setRecords] = useState([]);
     const [error, setError] = useState("");
-    const [userId, setUserId] = useState("");
 
     useEffect(() => {
-        // Decode token to get userId; token payload is { userId, role }
-        try {
-            const base64Url = token.split(".")[1];
-            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-            const payload = JSON.parse(decodeURIComponent(escape(window.atob(base64))));
-            setUserId(payload.userId);
-        } catch (_) { }
-    }, [token]);
-
-    useEffect(() => {
-        if (!userId) return;
         const load = async () => {
             try {
-                const res = await listUserBorrows(userId);
+                const res = await getMyBorrows(); // 🔥 chỉ gọi API /my_borrows
                 setRecords(res.data);
             } catch (err) {
                 setError(err.response?.data?.msg || "Đã có lỗi xảy ra");
             }
         };
-        load();
-    }, [userId]);
+        if (token) load();
+    }, [token]);
 
-    const onReturn = async (borrowId) => {
-        try {
-            await returnBook(borrowId);
-            setRecords((prev) => prev.map((r) => r._id === borrowId ? { ...r, returnDate: new Date().toISOString() } : r));
-        } catch (err) {
-            setError(err.response?.data?.msg || "Đã có lỗi xảy ra");
-        }
-    };
-
-    if (!token) return <p>Vui lòng đăng nhập để xem lịch sử mượn.</p>;
+    if (!token) return <p>Vui lòng đăng nhập để xem danh sách mượn.</p>;
 
     return (
         <div>
             <div className="page-header">
-                <h1 className="page-title">📖 Sách đã mượn</h1>
+                <h1 className="page-title">📚 Danh sách sách tôi đã mượn</h1>
             </div>
             {error && <div className="error-message">{error}</div>}
 
@@ -51,7 +31,7 @@ function MyBorrows({ token }) {
                 <table className="table">
                     <thead>
                         <tr>
-                            <th>Book ID</th>
+                            <th>Sách</th>
                             <th>Ngày mượn</th>
                             <th>Hạn trả</th>
                             <th>Trạng thái</th>
@@ -61,7 +41,14 @@ function MyBorrows({ token }) {
                     <tbody>
                         {records.map((r) => (
                             <tr key={r._id}>
-                                <td>{r.bookId}</td>
+                                <td>
+                                    <div style={{ fontWeight: 600 }}>
+                                        {r.bookId?.title || r.bookId || "Không rõ tên sách"}
+                                    </div>
+                                    <div style={{ color: "#6b7280", fontSize: 12 }}>
+                                        ID: {typeof r.bookId === "string" ? r.bookId : (r.bookId?._id || "-")}
+                                    </div>
+                                </td>
                                 <td>{new Date(r.borrowDate).toLocaleDateString()}</td>
                                 <td>{new Date(r.due_date).toLocaleDateString()}</td>
                                 <td>
@@ -77,7 +64,21 @@ function MyBorrows({ token }) {
                                             Trả lúc: {new Date(r.returnDate).toLocaleString()}
                                         </span>
                                     ) : (
-                                        <button className="btn primary" onClick={() => onReturn(r._id)}>
+                                        <button
+                                            className="btn primary"
+                                            onClick={async () => {
+                                                try {
+                                                    await returnBook(r._id);
+                                                    setRecords((prev) =>
+                                                        prev.map((x) =>
+                                                            x._id === r._id ? { ...x, returnDate: new Date().toISOString() } : x
+                                                        )
+                                                    );
+                                                } catch (err) {
+                                                    setError(err.response?.data?.msg || "Đã có lỗi xảy ra");
+                                                }
+                                            }}
+                                        >
                                             🔄 Trả sách
                                         </button>
                                     )}
@@ -92,5 +93,3 @@ function MyBorrows({ token }) {
 }
 
 export default MyBorrows;
-
-

@@ -43,16 +43,20 @@ exports.getAllBorrowRecords = async (req, res) => {
 };
 
 exports.getBorrowRecordsByUser = async (req, res) => {
-    const userId = req.params.id;
+    const userId = req.user.userId;
     try {
-        // console.log(userId);
-        const borrows = await borrowModel.find({ userId });
+        const borrows = await borrowModel
+            .find({ userId })
+            .populate("bookId", "title authors year")
+            .sort({ borrowDate: -1 });
+
         res.status(200).json(borrows);
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server error");
     }
 };
+
 
 exports.returnBook = async (req, res) => {
     const { borrowId } = req.params;
@@ -75,3 +79,5 @@ exports.returnBook = async (req, res) => {
         res.status(500).send("Server error");
     }
 };
+
+

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listAllBorrows, returnBook } from "../services/borrowservices";
+import { listAllBorrows, getMyBorrows, returnBook } from "../services/borrowservices";
 
 function BorrowList({ role, token }) {
     const [records, setRecords] = useState([]);
@@ -7,21 +7,21 @@ function BorrowList({ role, token }) {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await listAllBorrows();
+                const res = role === "admin" ? await listAllBorrows() : await getMyBorrows();
                 setRecords(res.data);
             } catch (err) {
                 setError(err.response?.data?.msg || "Đã có lỗi xảy ra");
             }
         };
-        load();
-    }, []);
+        if (token) load();
+    }, [role, token]);
 
-    if (!token || role !== "admin") return <p>Chỉ admin mới truy cập danh sách mượn.</p>;
+    if (!token) return <p>Vui lòng đăng nhập để xem danh sách mượn.</p>;
 
     return (
         <div>
             <div className="page-header">
-                <h1 className="page-title">📋 Quản lý mượn sách</h1>
+                <h1 className="page-title">{role === "admin" ? "📋 Quản lý mượn sách" : "📖 Sách tôi đang mượn"}</h1>
             </div>
             {error && <div className="error-message">{error}</div>}
 
@@ -29,8 +29,8 @@ function BorrowList({ role, token }) {
                 <table className="table">
                     <thead>
                         <tr>
-                            <th>Người mượn</th>
-                            <th>Book ID</th>
+                            {role === "admin" && <th>Người mượn</th>}
+                            <th>Sách</th>
                             <th>Ngày mượn</th>
                             <th>Hạn trả</th>
                             <th>Trạng thái</th>
@@ -40,12 +40,24 @@ function BorrowList({ role, token }) {
                     <tbody>
                         {records.map((r) => (
                             <tr key={r._id}>
+                                {role === "admin" && (
+                                    <td>
+                                        <div style={{ fontWeight: 600 }}>
+                                            {r.user?.name || r.userId?.name || "Không rõ tên"}
+                                        </div>
+                                        <div style={{ color: "#6b7280", fontSize: 12 }}>
+                                            ID: {typeof r.userId === 'string' ? r.userId : (r.userId?._id || r.userId || "-")}
+                                        </div>
+                                    </td>
+                                )}
                                 <td>
+                                    <div style={{ fontWeight: 600 }}>
+                                        {r.bookId?.title || r.bookId || "Không rõ tên sách"}
+                                    </div>
                                     <div style={{ color: "#6b7280", fontSize: 12 }}>
-                                        ID: {typeof r.userId === 'string' ? r.userId : (r.userId?._id || r.userId || "-")}
+                                        ID: {typeof r.bookId === 'string' ? r.bookId : (r.bookId?._id || r.bookId || "-")}
                                     </div>
                                 </td>
-                                <td>{r.bookId}</td>
                                 <td>{new Date(r.borrowDate).toLocaleDateString()}</td>
                                 <td>{new Date(r.due_date).toLocaleDateString()}</td>
                                 <td>
